@@ -34,7 +34,8 @@ delegate_to_app(Host, Req, State) ->
 
     case orddict:find(Host, State#applications.urls) of
         {ok,AppStatus} ->
-            io:format("App is ~p~n", AppStatus);
+            io:format("App is ~p~n", AppStatus),
+            http_proxy:start(Host, 8081);
         error ->
             io:format("App NOT FOUND ~n")
     end,
@@ -49,7 +50,7 @@ delegate_to_app(Host, Req, State) ->
 setup_applications() ->
     A1 = orddict:new(),
     A2 = orddict:append(<<"localhost">>, active, A1),
-    A3 = orddict:append(<<"myhost">>, active, A2),
+    A3 = orddict:append(<<"myhost.com">>, active, A2),
     A4 = orddict:append(<<"hostinactive">>, inactive, A3),
     A4.
 

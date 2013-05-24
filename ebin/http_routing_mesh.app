@@ -5,5 +5,6 @@
               {applications,[kernel,stdlib]},
               {mod,{http_routing_mesh_app,[]}},
               {env,[]},
-              {modules,[bertie,http_routing_mesh,http_routing_mesh_app,
-                        http_routing_mesh_sup,welcome_handler]}]}.
+              {modules,[bertie,http_proxy,http_routing_mesh,
+                        http_routing_mesh_app,http_routing_mesh_sup,
+                        welcome_handler]}]}.
