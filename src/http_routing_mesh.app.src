@@ -1,0 +1,12 @@
+{application, http_routing_mesh,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { http_routing_mesh_app, []}},
+  {env, []}
+ ]}.

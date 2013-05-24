@@ -1,0 +1,9 @@
+{application,http_routing_mesh,
+             [{description,[]},
+              {vsn,"1"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {mod,{http_routing_mesh_app,[]}},
+              {env,[]},
+              {modules,[bertie,http_routing_mesh,http_routing_mesh_app,
+                        http_routing_mesh_sup,welcome_handler]}]}.
