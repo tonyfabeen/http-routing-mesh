@@ -14,8 +14,12 @@ start() ->
   cowboy:start_http(http_routing_mesh, N_acceptors,
     [{port, 8080}],
     [{env, [{dispatch, Dispatch}]}]
-  ).
+  ), 
 
+  io:format("HTTP Router Started at port : 8080 ~n").
+
+
+%%
 init({tcp, http}, Req, _Opts) ->
   State = #applications{urls=setup_applications()},
   {ok, Req, State}.
