@@ -50,7 +50,7 @@ delegate_to_app(Host, Req, State) ->
 setup_applications() ->
     A1 = orddict:new(),
     A2 = orddict:append(<<"localhost">>, active, A1),
-    A3 = orddict:append(<<"myhost.com">>, active, A2),
-    A4 = orddict:append(<<"hostinactive">>, inactive, A3),
+    A3 = orddict:append(<<"www.myhost.com">>, active, A2),
+    A4 = orddict:append(<<"www.hostinactive.com">>, inactive, A3),
     A4.
 
