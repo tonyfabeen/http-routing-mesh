@@ -1,7 +1,7 @@
 -module(http_routing_mesh).
 -export([start/0, init/3, handle/2, terminate/3]).
 
--record(applications,{repository}).
+-record(state, {applications, proxies}).
 
 start() ->
   application:start(crypto),
@@ -21,7 +21,7 @@ start() ->
 
 %%
 init({tcp, http}, Req, _Opts) ->
-  State = #applications{repository=setup_applications()},
+  State = #state{applications=setup_applications(), proxies=setup_proxies()},
   {ok, Req, State}.
 
 %%
@@ -35,11 +35,12 @@ terminate(_Reason, _Req, _State) ->
 
 %% Find Application
 delegate_to_app(Host, Req, State) ->
-    case ets:lookup(State#applications.repository, Host) of
+    case ets:lookup(State#state.applications, Host) of
         [App] ->
             {AppHost, AppPort, AppStatus} = App,
             io:format("App is registered for => URL :  ~p PORT: ~p STATUS: ~p ~n", [AppHost, AppPort, AppStatus]),
-            http_proxy:start(AppHost, 8081);
+            ProxyPid = http_proxy:start(AppHost, 8081),
+            ets:insert(State#state.proxies, {AppHost, ProxyPid});
         [] ->
             io:format("App NOT FOUND ~n")
     end,
@@ -67,4 +68,8 @@ setup_applications() ->
     ets:insert(Repository, {<<"localhost">>, 4567, active}),
     ets:insert(Repository, [ {<<"www.myhost.com">>, 4567, active}, {<<"www.hostinactive.com">>, 4567, inactive} ]),
     Repository.
+
+setup_proxies() ->
+    Proxies = ets:new(proxies, [set, named_table, public]),
+    Proxies.
 
