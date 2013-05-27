@@ -1,7 +1,7 @@
 -module(http_routing_mesh).
 -export([start/0, init/3, handle/2, terminate/3]).
 
--record(applications,{urls}).
+-record(applications,{urls, proxy_pids}).
 
 start() ->
   application:start(crypto),
@@ -43,6 +43,17 @@ delegate_to_app(Host, Req, State) ->
         error ->
             io:format("App NOT FOUND ~n")
     end,
+
+    %% Should get the Http Proxy Pid, associate to a App host 
+    %% and when it there is some instance responding to That, just delegate the request
+    %% something like that :
+    %% HttpProxyPid ! {self(), Req, State} 
+    %% and here: 
+    %% receive
+    %%   {From, Response, ... } ->
+    %%      {ok, Req2} = cowboy_req:reply(200, [], Response, Req),
+    %%      {ok, Req2, State}.
+    %% end
 
     Host1 = binary_to_list(Host),
     Response = ["<h3> Requested Host : ", Host1, " </h3>"],
