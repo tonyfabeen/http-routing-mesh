@@ -15,11 +15,13 @@ start(Host, Port) ->
     [{env, [{dispatch, Dispatch } ] }]
   ),
 
-  io:format("HTTP Proxy at ~p : ~p  to ~p ~n", [Host, Port, self()]).
+  io:format("HTTP Proxy at ~p : ~p  to ~p ~n", [Host, Port, self()]),
+  self().
 
 
 %%
 init({tcp, http}, Req, _Opts) ->
+  io:format("Http Proxy PID : ~p responding init() ~n", [self()]),
   {ok, Client} = cowboy_client:init([]),
   State = #state{client=Client},
   {ok, Req, State}.
@@ -27,12 +29,11 @@ init({tcp, http}, Req, _Opts) ->
 %%
 handle(Req, State) ->
 
-    %%{Host, _ } = cowboy_req:host(Req),
-    io:format("Http Proxy PID : ~p responding ~n", [self()]),
+    io:format("Http Proxy PID : ~p responding handle() ~n", [self()]),
     {Method, RequestUrl, Headers} = request_dump(Req),
 
-    %% Send Request to App   
-    {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.client), 
+    %% Send Request to App
+    {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.client),
     {ok, ResponseStatus, ResponseHeaders, Client3} = cowboy_client:response(Client2),
     {ok, ResponseBody, _Client4} = cowboy_client:stream_body(Client3),
 
