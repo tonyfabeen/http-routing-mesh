@@ -15,7 +15,7 @@ start(Host, Port) ->
     [{env, [{dispatch, Dispatch } ] }]
   ),
 
-  io:format("HTTP Proxy at ~p ~p ~n", [Host, Port]).
+  io:format("HTTP Proxy at ~p : ~p  to ~p ~n", [Host, Port, self()]).
 
 
 %%
@@ -28,6 +28,7 @@ init({tcp, http}, Req, _Opts) ->
 handle(Req, State) ->
 
     %%{Host, _ } = cowboy_req:host(Req),
+    io:format("Http Proxy PID : ~p responding ~n", [self()]),
     {Method, RequestUrl, Headers} = request_dump(Req),
 
     %% Send Request to App   
