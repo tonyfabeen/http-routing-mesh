@@ -1,7 +1,7 @@
 -module(http_routing_mesh).
 -export([start/0, init/3, handle/2, terminate/3]).
 
--record(applications,{urls, proxy_pids}).
+-record(applications,{repository}).
 
 start() ->
   application:start(crypto),
@@ -14,14 +14,14 @@ start() ->
   cowboy:start_http(http_routing_mesh, N_acceptors,
     [{port, 8080}],
     [{env, [{dispatch, Dispatch}]}]
-  ), 
+  ),
 
   io:format("HTTP Router Started at port : 8080 ~n").
 
 
 %%
 init({tcp, http}, Req, _Opts) ->
-  State = #applications{urls=setup_applications()},
+  State = #applications{repository=setup_applications()},
   {ok, Req, State}.
 
 %%
@@ -35,20 +35,20 @@ terminate(_Reason, _Req, _State) ->
 
 %% Find Application
 delegate_to_app(Host, Req, State) ->
-
-    case orddict:find(Host, State#applications.urls) of
-        {ok,AppStatus} ->
-            io:format("App is ~p~n", AppStatus),
-            http_proxy:start(Host, 8081);
-        error ->
+    case ets:lookup(State#applications.repository, Host) of
+        [App] ->
+            {AppHost, AppPort, AppStatus} = App,
+            io:format("App is registered for => URL :  ~p PORT: ~p STATUS: ~p ~n", [AppHost, AppPort, AppStatus]),
+            http_proxy:start(AppHost, 8081);
+        [] ->
             io:format("App NOT FOUND ~n")
     end,
 
-    %% Should get the Http Proxy Pid, associate to a App host 
+    %% Should get the Http Proxy Pid, associate to a App host
     %% and when it there is some instance responding to That, just delegate the request
     %% something like that :
-    %% HttpProxyPid ! {self(), Req, State} 
-    %% and here: 
+    %% HttpProxyPid ! {self(), Req, State}
+    %% and here:
     %% receive
     %%   {From, Response, ... } ->
     %%      {ok, Req2} = cowboy_req:reply(200, [], Response, Req),
@@ -63,9 +63,8 @@ delegate_to_app(Host, Req, State) ->
 
 %% Just to Test
 setup_applications() ->
-    A1 = orddict:new(),
-    A2 = orddict:append(<<"localhost">>, active, A1),
-    A3 = orddict:append(<<"www.myhost.com">>, active, A2),
-    A4 = orddict:append(<<"www.hostinactive.com">>, inactive, A3),
-    A4.
+    Repository = ets:new(applications, [set, named_table, public]),
+    ets:insert(Repository, {<<"localhost">>, 4567, active}),
+    ets:insert(Repository, [ {<<"www.myhost.com">>, 4567, active}, {<<"www.hostinactive.com">>, 4567, inactive} ]),
+    Repository.
 
