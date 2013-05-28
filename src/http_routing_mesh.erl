@@ -1,7 +1,7 @@
 -module(http_routing_mesh).
 -export([start/0, init/3, handle/2, terminate/3]).
 
--record(state, {applications, proxies}).
+-record(state, {client, applications, proxies}).
 
 start() ->
   application:start(crypto),
@@ -21,7 +21,8 @@ start() ->
 
 %%
 init({tcp, http}, Req, _Opts) ->
-  State = #state{applications=setup_applications(), proxies=setup_proxies()},
+  {ok, Client} = cowboy_client:init([]),
+  State = #state{client=Client, applications=setup_applications(), proxies=setup_proxies()},
   {ok, Req, State}.
 
 %%
@@ -39,34 +40,59 @@ delegate_to_app(Host, Req, State) ->
         [App] ->
             {AppHost, AppPort, AppStatus} = App,
             io:format("App is registered for => URL :  ~p PORT: ~p STATUS: ~p ~n", [AppHost, AppPort, AppStatus]),
-            ProxyPid = http_proxy:start(AppHost, 8081),
-            ets:insert(State#state.proxies, {AppHost, ProxyPid});
+
+            %% Send Request to App
+            {Method, RequestUrl, Headers} = request_dump(AppHost, AppPort, Req),
+            {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.client),
+            {ok, ResponseStatus, ResponseHeaders, Client3} = cowboy_client:response(Client2),
+            {ok, ResponseBody, _Client4} = cowboy_client:stream_body(Client3),
+
+            %% Send Response
+            io:format("ResponseStatus ~p ~n", [ResponseStatus]),
+            io:format("ResponseHeaders ~p ~n", [ResponseHeaders]),
+            io:format("ResponseBody ~p ~n", [ResponseBody]),
+            {ok, Req2 }   = cowboy_req:reply(ResponseStatus, ResponseHeaders, ResponseBody, Req),
+            {ok, Req2, State};
+
         [] ->
             io:format("App NOT FOUND ~n")
-    end,
+    end.
 
-    %% Should get the Http Proxy Pid, associate to a App host
-    %% and when it there is some instance responding to That, just delegate the request
-    %% something like that :
-    %% HttpProxyPid ! {self(), Req, State}
-    %% and here:
-    %% receive
-    %%   {From, Response, ... } ->
-    %%      {ok, Req2} = cowboy_req:reply(200, [], Response, Req),
-    %%      {ok, Req2, State}.
-    %% end
+%% Extract request Values
+request_dump(AppHost, AppPort, Req) ->
+  {Method, _}  = cowboy_req:method(Req),
+  {Host, _ }    = cowboy_req:host(Req),
+  {HostUrl, _}  = cowboy_req:host_url(Req),
+  {Port, _}     = cowboy_req:port(Req),
+  {Headers, _}  = cowboy_req:headers(Req),
+  {PathInfo, _} = cowboy_req:path_info(Req),
+  {Path, _}     = cowboy_req:path(Req),
+  {QueryString, _} = cowboy_req:qs(Req),
+  {QueryStringVals, _} = cowboy_req:qs_vals(Req),
 
-    Host1 = binary_to_list(Host),
-    Response = ["<h3> Requested Host : ", Host1, " </h3>"],
-    io:format("Generated Response ~p~n", [Response]),
-    {ok, Req2} = cowboy_req:reply(200, [], Response, Req),
-    {ok, Req2, State}.
+  io:format("METHOD : ~p ~n", [Method]),
+  io:format("HOST : ~p ~n", [Host]),
+  io:format("HOST URL : ~p ~n", [HostUrl]),
+  io:format("PORT : ~p ~n", [Port]),
+  io:format("HEADERS : ~p ~n", [Headers]),
+  io:format("PATH INFO : ~p ~n", [PathInfo]),
+  io:format("PATH : ~p ~n", [Path]),
+  io:format("QUERY_STRING : ~p ~n", [QueryString]),
+  io:format("QUERY_STRING VALUES : ~p ~n", [QueryStringVals]),
+
+  RequestUrl = <<AppHost/binary, AppPort/binary, Path/binary, QueryString/binary>>,
+  {Method, RequestUrl, Headers}.
+
+
 
 %% Just to Test
 setup_applications() ->
     Repository = ets:new(applications, [set, named_table, public]),
-    ets:insert(Repository, {<<"localhost">>, 4567, active}),
-    ets:insert(Repository, [ {<<"www.myhost.com">>, 4567, active}, {<<"www.hostinactive.com">>, 4567, inactive} ]),
+    ets:insert(Repository, {<<"localhost">>, <<":4567">>, active}),
+    ets:insert(Repository, [ 
+      {<<"www.myhost.com">>, <<":4567">>, active}, 
+      {<<"www.hostinactive.com">>, <<":4568">>, inactive} 
+    ]),
     Repository.
 
 setup_proxies() ->
