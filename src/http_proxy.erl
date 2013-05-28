@@ -10,13 +10,13 @@ start(Host, Port) ->
   Dispatch = cowboy_router:compile([
     {Host2, [ {'_', ?MODULE, [] } ] }
   ]),
-  cowboy:start_http(list_to_atom(Host2), 10,
-    [{port, Port}],
-    [{env, [{dispatch, Dispatch } ] }]
-  ),
+  {ok, ProxyPid} = cowboy:start_http(list_to_atom(Host2), 10,
+                [{port, Port}],
+                [{env, [{dispatch, Dispatch } ] }]
+                ),
 
-  io:format("HTTP Proxy at ~p : ~p  to ~p ~n", [Host, Port, self()]),
-  self().
+  io:format("HTTP Proxy at ~p : ~p  to ~p ~n", [Host, Port, ProxyPid]),
+  ProxyPid.
 
 
 %%
@@ -79,6 +79,4 @@ request_dump(Req) ->
   {Method, RequestUrl, Headers}.
 
 
-%%
-%%parse_response(Client) ->
 
