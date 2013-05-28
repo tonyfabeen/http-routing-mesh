@@ -1,5 +1,6 @@
 *.swp
 *.swo
 *.beam
+*.app
 deps/*
 ebin/*
