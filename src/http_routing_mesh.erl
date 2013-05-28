@@ -36,6 +36,7 @@ handle(Req, State) ->
         delegate_request_to_app(Req1, App, State);
     [] ->
         io:format("App NOT FOUND ~n")
+        %% Return 404 Generic
 
   end.
 
