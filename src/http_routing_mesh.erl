@@ -1,18 +1,20 @@
 -module(http_routing_mesh).
--export([start/0, init/3, handle/2, terminate/3]).
+-export([start/0, start/2, init/3, handle/2, terminate/3]).
 
 -record(state, {client, applications, proxies}).
 
 start() ->
+    start(10, 8080).
+
+start(NumberAcceptors, Port) ->
   application:start(crypto),
   application:start(ranch),
   application:start(cowboy),
-  N_acceptors = 10,
   Dispatch = cowboy_router:compile([
       {'_', [{'_', http_routing_mesh, []}]}
     ]),
-  cowboy:start_http(http_routing_mesh, N_acceptors,
-    [{port, 8080}],
+  cowboy:start_http(http_routing_mesh, NumberAcceptors,
+    [{port, Port}],
     [{env, [{dispatch, Dispatch}]}]
   ),
 
@@ -27,36 +29,45 @@ init({tcp, http}, Req, _Opts) ->
 
 %%
 handle(Req, State) ->
+  io:format("HTTP Router PID : ~p ~n", [self()]),
   {Host, Req1} = cowboy_req:host(Req),
-  delegate_to_app(Host, Req1, State).
+  case find_app_for(Host, State) of
+    [App] ->
+        delegate_request_to_app(Req1, App, State);
+    [] ->
+        io:format("App NOT FOUND ~n")
+
+  end.
 
 %%
 terminate(_Reason, _Req, _State) ->
   ok.
 
 %% Find Application
-delegate_to_app(Host, Req, State) ->
-    case ets:lookup(State#state.applications, Host) of
-        [App] ->
-            {AppHost, AppPort, AppStatus} = App,
-            io:format("App is registered for => URL :  ~p PORT: ~p STATUS: ~p ~n", [AppHost, AppPort, AppStatus]),
+find_app_for(Host,State) ->
+    App = ets:lookup(State#state.applications, Host),
+    App.
 
-            %% Send Request to App
-            {Method, RequestUrl, Headers} = request_dump(AppHost, AppPort, Req),
-            {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.client),
-            {ok, ResponseStatus, ResponseHeaders, Client3} = cowboy_client:response(Client2),
-            {ok, ResponseBody, _Client4} = cowboy_client:stream_body(Client3),
+%% Delegate a Request to an application
+delegate_request_to_app(Req, App, State) ->
 
-            %% Send Response
-            io:format("ResponseStatus ~p ~n", [ResponseStatus]),
-            io:format("ResponseHeaders ~p ~n", [ResponseHeaders]),
-            io:format("ResponseBody ~p ~n", [ResponseBody]),
-            {ok, Req2 }   = cowboy_req:reply(ResponseStatus, ResponseHeaders, ResponseBody, Req),
-            {ok, Req2, State};
+    {AppHost, AppPort, AppStatus} = App,
+    io:format("App is registered for => URL :  ~p PORT: ~p STATUS: ~p ~n", [AppHost, AppPort, AppStatus]),
 
-        [] ->
-            io:format("App NOT FOUND ~n")
-    end.
+    %% Send Request to App
+    {Method, RequestUrl, Headers} = request_dump(AppHost, AppPort, Req),
+    {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.client),
+    {ok, ResponseStatus, ResponseHeaders, Client3} = cowboy_client:response(Client2),
+    {ok, ResponseBody, _Client4} = cowboy_client:stream_body(Client3),
+
+    %% Send Response
+    io:format("ResponseStatus ~p ~n", [ResponseStatus]),
+    io:format("ResponseHeaders ~p ~n", [ResponseHeaders]),
+    io:format("ResponseBody ~p ~n", [ResponseBody]),
+
+    {ok, Req2 }   = cowboy_req:reply(ResponseStatus, ResponseHeaders, ResponseBody, Req),
+    {ok, Req2, State}.
+
 
 %% Extract request Values
 request_dump(AppHost, AppPort, Req) ->
@@ -89,9 +100,9 @@ request_dump(AppHost, AppPort, Req) ->
 setup_applications() ->
     Repository = ets:new(applications, [set, named_table, public]),
     ets:insert(Repository, {<<"localhost">>, <<":4567">>, active}),
-    ets:insert(Repository, [ 
-      {<<"www.myhost.com">>, <<":4567">>, active}, 
-      {<<"www.hostinactive.com">>, <<":4568">>, inactive} 
+    ets:insert(Repository, [
+      {<<"www.myhost.com">>, <<":4567">>, active},
+      {<<"www.hostinactive.com">>, <<":4568">>, inactive}
     ]),
     Repository.
 
