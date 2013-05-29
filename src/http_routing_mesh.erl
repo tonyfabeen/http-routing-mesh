@@ -11,6 +11,7 @@ start(NumberAcceptors, Port) ->
   application:start(ranch),
   application:start(cowboy),
   WebSocketsHostMatch = "websockets.myhost.com",
+  %%WebSocketsHostMatch = "websockets.:domain",
   Dispatch = cowboy_router:compile([
       {WebSocketsHostMatch, [{'_', websockets_routing_mesh, []}]},
       {'_', [{'_', http_routing_mesh, []}]}
