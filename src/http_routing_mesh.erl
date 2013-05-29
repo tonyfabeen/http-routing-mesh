@@ -10,7 +10,9 @@ start(NumberAcceptors, Port) ->
   application:start(crypto),
   application:start(ranch),
   application:start(cowboy),
+  WebSocketsHostMatch = "websockets.myhost.com",
   Dispatch = cowboy_router:compile([
+      {WebSocketsHostMatch, [{'_', websockets_routing_mesh, []}]},
       {'_', [{'_', http_routing_mesh, []}]}
     ]),
   cowboy:start_http(http_routing_mesh, NumberAcceptors,
@@ -103,6 +105,7 @@ setup_applications() ->
     ets:insert(Repository, {<<"localhost">>, <<":4567">>, active}),
     ets:insert(Repository, [
       {<<"www.myhost.com">>, <<":4567">>, active},
+      {<<"websockets.myhost.com">>, <<":4568">>, active},
       {<<"www.hostinactive.com">>, <<":4568">>, inactive}
     ]),
     Repository.
