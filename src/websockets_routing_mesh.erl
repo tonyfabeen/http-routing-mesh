@@ -3,7 +3,7 @@
 -export([init/3, websocket_init/3, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
 
 init({tcp, http}, _Req, _Opts) ->
-    {upgrade, protocol, cowboy_socket}.
+    {upgrade, protocol, cowboy_websocket}.
 
 %% Behaviour Callbacks
 websocket_init(_TransportName, Req, _Opts) ->
