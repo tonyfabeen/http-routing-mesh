@@ -8,5 +8,8 @@
                   stdlib
                  ]},
   {mod, { http_routing_mesh_app, []}},
-  {env, []}
+  {env, [
+  	{acceptors, 10},
+  	{port, 8080}  	
+  ]}
  ]}.

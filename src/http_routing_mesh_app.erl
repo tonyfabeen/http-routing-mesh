@@ -10,11 +10,14 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+  {ok, AppPort} = application:get_env(http_routing_mesh, port),
+  {ok, AppAcceptors} = application:get_env(http_routing_mesh, acceptors),
+
   Dispatch = cowboy_router:compile([
       {'_', [{'_', http_routing_mesh, []}]}
     ]),
-  cowboy:start_http(http_routing_mesh, 10,
-    [{port, 8080}],
+  cowboy:start_http(http_routing_mesh, AppAcceptors,
+    [{port, AppPort}],
     [{env, [{dispatch, Dispatch}]}]
   ),
 
