@@ -1,28 +1,13 @@
 -module(http_routing_mesh).
--export([start/0, start/2, init/3, handle/2, terminate/3]).
+-export([start/0, init/3, handle/2, terminate/3]).
 
 -record(state, {http_client, eredis}).
 
 start() ->
-    start(10, 8080).
-
-start(NumberAcceptors, Port) ->
   application:start(crypto),
   application:start(ranch),
   application:start(cowboy),
-  WebSocketsHostMatch = "websockets.myhost.com",
-  %%WebSocketsHostMatch = "websockets.:domain",
-  Dispatch = cowboy_router:compile([
-      {WebSocketsHostMatch, [{'_', websockets_routing_mesh, []}]},
-      {'_', [{'_', http_routing_mesh, []}]}
-    ]),
-  cowboy:start_http(http_routing_mesh, NumberAcceptors,
-    [{port, Port}],
-    [{env, [{dispatch, Dispatch}]}]
-  ),
-
-  io:format("HTTP Router Started at port : 8080 ~n").
-
+  application:start(http_routing_mesh).
 
 %%
 init({tcp, http}, Req, _Opts) ->
