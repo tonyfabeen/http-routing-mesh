@@ -1,7 +1,7 @@
 -module(http_routing_mesh).
 -export([start/0, start/2, init/3, handle/2, terminate/3]).
 
--record(state, {client, applications, proxies}).
+-record(state, {http_client, eredis}).
 
 start() ->
     start(10, 8080).
@@ -27,7 +27,8 @@ start(NumberAcceptors, Port) ->
 %%
 init({tcp, http}, Req, _Opts) ->
   {ok, Client} = cowboy_client:init([]),
-  State = #state{client=Client, applications=setup_applications(), proxies=setup_proxies()},
+  {ok, ERedis}  = eredis:start_link(),
+  State = #state{http_client=Client, eredis=ERedis},
   {ok, Req, State}.
 
 %%
@@ -35,12 +36,12 @@ handle(Req, State) ->
   io:format("HTTP Router PID : ~p ~n", [self()]),
   {Host, Req1} = cowboy_req:host(Req),
   case find_app_for(Host, State) of
-    [App] ->
-        delegate_request_to_app(Req1, App, State);
+    [AppUrl] ->
+        delegate_request_to_app(Req1, AppUrl, State);
     [] ->
-        io:format("App NOT FOUND ~n")
-        %% Return 404 Generic
-
+        io:format("App NOT FOUND ~n"),
+        {ok, Req2 }   = cowboy_req:reply(404, [], "<h1>Sorry, App Not Found</h1>", Req1),
+        {ok, Req2, State}
   end.
 
 %%
@@ -49,18 +50,18 @@ terminate(_Reason, _Req, _State) ->
 
 %% Find Application
 find_app_for(Host,State) ->
-    App = ets:lookup(State#state.applications, Host),
-    App.
+    {ok, AppUrl} = eredis:q(State#state.eredis, ["LRANGE", Host, "0", "0"]),
+    AppUrl.
+
 
 %% Delegate a Request to an application
-delegate_request_to_app(Req, App, State) ->
+delegate_request_to_app(Req, AppUrl, State) ->
 
-    {AppHost, AppPort, AppStatus} = App,
-    io:format("App is registered for => URL :  ~p PORT: ~p STATUS: ~p ~n", [AppHost, AppPort, AppStatus]),
+    io:format("App is registered for => URL :  ~p ~n", [AppUrl]),
 
     %% Send Request to App
-    {Method, RequestUrl, Headers} = request_dump(AppHost, AppPort, Req),
-    {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.client),
+    {Method, RequestUrl, Headers} = request_dump(AppUrl, Req),
+    {ok, Client2} = cowboy_client:request(Method, RequestUrl, Headers, State#state.http_client),
     {ok, ResponseStatus, ResponseHeaders, Client3} = cowboy_client:response(Client2),
     {ok, ResponseBody, _Client4} = cowboy_client:stream_body(Client3),
 
@@ -74,7 +75,7 @@ delegate_request_to_app(Req, App, State) ->
 
 
 %% Extract request Values
-request_dump(AppHost, AppPort, Req) ->
+request_dump(AppUrl, Req) ->
   {Method, _}  = cowboy_req:method(Req),
   {Host, _ }    = cowboy_req:host(Req),
   {HostUrl, _}  = cowboy_req:host_url(Req),
@@ -95,23 +96,6 @@ request_dump(AppHost, AppPort, Req) ->
   io:format("QUERY_STRING : ~p ~n", [QueryString]),
   io:format("QUERY_STRING VALUES : ~p ~n", [QueryStringVals]),
 
-  RequestUrl = <<AppHost/binary, AppPort/binary, Path/binary, QueryString/binary>>,
+  RequestUrl = <<AppUrl/binary, Path/binary, QueryString/binary>>,
   {Method, RequestUrl, Headers}.
-
-
-
-%% Just to Test
-setup_applications() ->
-    Repository = ets:new(applications, [set, named_table, public]),
-    ets:insert(Repository, {<<"localhost">>, <<":4567">>, active}),
-    ets:insert(Repository, [
-      {<<"www.myhost.com">>, <<":4567">>, active},
-      {<<"websockets.myhost.com">>, <<":4568">>, active},
-      {<<"www.hostinactive.com">>, <<":4568">>, inactive}
-    ]),
-    Repository.
-
-setup_proxies() ->
-    Proxies = ets:new(proxies, [set, named_table, public]),
-    Proxies.
 

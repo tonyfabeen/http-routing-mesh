@@ -7,4 +7,4 @@
               {env,[]},
               {modules,[bertie,http_proxy,http_routing_mesh,
                         http_routing_mesh_app,http_routing_mesh_sup,
-                        welcome_handler]}]}.
+                        websockets_routing_mesh]}]}.
