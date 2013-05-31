@@ -18,7 +18,6 @@ init({tcp, http}, Req, _Opts) ->
 
 %%
 handle(Req, State) ->
-  io:format("HTTP Router PID : ~p ~n", [self()]),
   {Host, Req1} = cowboy_req:host(Req),
   case find_app_for(Host, State) of
     [AppUrl] ->
