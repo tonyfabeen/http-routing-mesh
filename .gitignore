@@ -2,6 +2,7 @@
 *.swo
 *.beam
 *.app
+*.rdb
 deps/*
 ebin/*
 /erl_crash.dump
