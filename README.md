@@ -1,19 +1,54 @@
-$ redis-cli rpush http:www.myhost.com 192.175.19.19:80
-$ redis-cli rpush http:www.mycrazyhost.com 192.175.19.20:80
-$ redis-cli rpush websocket:websockets.mycrazyhost.com 192.175.19.20:4568
+HTTP Routing Mesh
+=================
+
+What is ?
+---------
+
+It's a simple HTTP Router and proxy based on Erlang. 
+
+Dependencies
+------------
+ - >= Erlang R15B03
+ - >= Cowboy 0.8.5
+ - Redis
+
+Run it Locally
+------------
+
+## Change /etc/hosts
+
+Put that line on /etc/hosts 
+
+127.0.0.1 www.myhost.com
+
+## Populate Redis
+  Here i populate **www.myhost.com** with 02 backend servers
+
+  $ redis-cli RPUSH http:www.myhost.com 127.0.0.1:4567
+
+  $ redis-cli RPUSH http:www.myhost.com 127.0.0.1:4568
 
 
--- Pool App (gen_server) 
-  Creates a new Router Proxy Instance related to some Host Name.
-  Talk directly with Redis, when a new App instance is Created, it will
-  create a new proccess to that instance. 
+## Run Sinatra test 
+
+$ ./ruby app_test.rb -p 4567
+
+$ ./ruby app_test.rb -p 4568 
+ 
+
+## Compile and Start Router 
+  $ make
 
 
--- Websockets 
-  Each Proxy instance will be a Erlang Process responding to a port.
-  Router starts a session between Client and a Hosted Application
-  
-  ????
-  How to Send Message to Backends ? Erlang CLients? 
+It's ready.
 
-  Each App can be a chat room with a list of subscribers(clients)and all messages will be sent to them when its ready..
+By Default the router starts on port 8080, if you want change the number of socket acceptors and port listening, open **.app.src** file and change values there. 
+
+To access the Sinatra application test try :
+
+http://www.myhost.com:8080
+
+
+## TODO
+
+Everything.
