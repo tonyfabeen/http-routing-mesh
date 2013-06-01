@@ -1,9 +1,6 @@
-HTTP Routing Mesh
-=================
+# HTTP Routing Mesh
 
-# What is ?
-
-It's a simple HTTP Router and proxy based on Erlang. 
+A simple HTTP Router and proxy based on Erlang. 
 
 ## Dependencies
 
